@@ -182,11 +182,12 @@ function students() {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Mã HV</th><th>Họ và tên</th><th>SĐT</th><th>Gmail</th><th>Lớp</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th>Mã HV</th><th>Họ và tên</th><th>SĐT</th><th>Gmail</th><th>Lớp</th><th>Ngày tạo</th><th>Thao tác</th></tr></thead>
           <tbody>
           ${list.map(s=>`<tr>
             <td><b>${s.id}</b></td><td>${s.name}</td><td>${s.phone}</td><td>${s.email||'—'}</td>
             <td>${getClassById(s.centerClass)?.name||'—'}</td>
+            <td>${s.createdAt ? formatDate(s.createdAt) : '—'}</td>
             <td><div class="action-btns">
               <button class="btn btn-info btn-sm" onclick="viewStudent('${s.id}')"><i class="fas fa-eye"></i></button>
               <button class="btn btn-warning btn-sm" onclick="editStudent('${s.id}')"><i class="fas fa-edit"></i></button>
@@ -271,7 +272,8 @@ function students() {
     openModal('Thêm học viên mới', studentForm(), () => {
       const f = collectStudentForm();
       if (!f) return false;
-      f.id = genStudentId(f.name, f.centerClass);
+      f.id = genStudentId();
+      f.createdAt = new Date().toISOString().split('T')[0];
       DB.students.push(f);
       toast('Đã thêm học viên!'); render(); return true;
     });
@@ -280,29 +282,21 @@ function students() {
   }
 
   function studentForm(s={}) {
-    if (DB.classes.length === 0) {
-      return `<div style="padding:20px;text-align:center;color:#ef4444"><i class="fas fa-exclamation-triangle"></i> Chưa có lớp học nào. Vui lòng tạo lớp trước!</div>`;
-    }
     return `<div class="form-grid">
       <div class="form-group"><label>Họ và tên *</label><input id="f_name" value="${s.name||''}"/></div>
       <div class="form-group"><label>Số điện thoại</label><input id="f_phone" value="${s.phone||''}"/></div>
       <div class="form-group"><label>Gmail</label><input type="email" id="f_email" value="${s.email||''}"/></div>
-      <div class="form-group"><label>Lớp học</label><select id="f_centerClass">${DB.classes.map(cl=>`<option value="${cl.id}" ${s.centerClass===cl.id?'selected':''}>${cl.name}</option>`).join('')}</select></div>
       <div class="form-group" style="grid-column:1/-1"><label>Ghi chú</label><textarea id="f_note">${s.note||''}</textarea></div>
     </div>`;
   }
 
   function collectStudentForm() {
-    if (DB.classes.length === 0) return null;
     const name = document.getElementById('f_name').value.trim();
     if (!name) { toast('Vui lòng nhập họ tên!','error'); return null; }
-    const centerClass = document.getElementById('f_centerClass')?.value || '';
-    if (!centerClass) { toast('Vui lòng chọn lớp học!','error'); return null; }
     return {
       name,
       phone: document.getElementById('f_phone').value,
       email: document.getElementById('f_email').value,
-      centerClass,
       note: document.getElementById('f_note').value
     };
   }
@@ -524,14 +518,19 @@ function receipts() {
           ['\u0110\u0103ng k\u00fd', `\u0110\u1ee3t ${dotDangKy} \u2013 ${cl?.name||r.classId}`],
           ['Ng\u00e0y t\u1ea1o', formatDate(r.date)],
           ['T\u00ean h\u1ecdc vi\u00ean', r.studentName],
-          ['M\u00e3 h\u1ecdc vi\u00ean', r.studentId],
-          ['Gmail', s?.email||'—'],
+          ['Mã học viên', `${r.studentId} <span style="color:#10b981;font-size:.8rem">(mật khẩu đăng nhập)</span>`],
+          ['Gmail', `${s?.email||'—'} <span style="color:#10b981;font-size:.8rem">(tên đăng nhập)</span>`],
           ['L\u1edbp \u0111\u0103ng k\u00fd', cl?.name||r.classId],
           ['Th\u1eddi h\u1ea1n', cl?.startDate ? formatDate(cl.startDate)+' \u2192 '+formatDate(cl.endDate) : '—'],
           ['M\u00e3 gi\u1ea3m gi\u00e1', r.discountCode||'—'],
           ['Ghi ch\u00fa', r.note||'—']
         ].map(([l,v])=>`<div class="receipt-row"><span>${l}:</span><b>${v}</b></div>`).join('')}
-        <div class="receipt-total">H\u1ecdc ph\u00ed: ${formatCurrency(r.amount)}</div>
+        <div class="receipt-total">Học phí: ${formatCurrency(r.amount)}</div>
+        <div style="margin-top:20px;text-align:right">
+          <div style="font-size:.82rem;color:#64748b;margin-bottom:4px">Xác nhận người tạo biên lai</div>
+          <img src="signature.png" style="height:110px;mix-blend-mode:multiply;opacity:1;filter:contrast(2) brightness(0.6)"/>
+          <div style="font-weight:700;color:#1e293b;margin-top:4px">Trợ Lý Tr.Cường</div>
+        </div>
       </div>`, () => { window.print(); return true; });
     document.getElementById('modalConfirm').innerHTML = '<i class="fas fa-print"></i> In bi\u00ean lai';
   };
@@ -576,6 +575,7 @@ function receipts() {
         }
       }
       students.forEach(s => {
+        s.centerClass = cid;
         DB.receipts.push({ id: genId('BL',DB.receipts), date, studentName: s.name, studentId: s.id, classId: cid, amount: fee, discountCode: dcode||null, note: '' });
       });
       toast('T\u1ea1o ' + students.length + ' bi\u00ean lai th\u00e0nh c\u00f4ng!');
@@ -684,6 +684,7 @@ function receipts() {
         if (disc) { disc.usedCount = (disc.usedCount||0)+1; if (disc.maxUse>0 && disc.usedCount>=disc.maxUse) disc.active=false; }
       }
       const s = DB.students.find(x=>x.id===sid);
+      s.centerClass = cid;
       DB.receipts.push({ id: genId('BL',DB.receipts), date: document.getElementById('r_date').value, studentName: s.name, studentId: sid, classId: cid, amount: amt, discountCode: dcode||null, note: document.getElementById('r_note').value });
       toast('T\u1ea1o bi\u00ean lai th\u00e0nh c\u00f4ng!'); render(); return true;
     });
@@ -905,7 +906,7 @@ function importStudentsExcel(e) {
         const className = r['L\u1edbp'] || r['Lop'] || r['class'] || '';
         const cl = DB.classes.find(c => c.name === className);
         const centerClass = cl ? cl.id : (DB.classes[0]?.id || '');
-        const id = genStudentId(name, centerClass);
+        const id = genStudentId();
         DB.students.push({ id, name, phone, email, centerClass, note });
         added++;
       });

@@ -40,21 +40,14 @@ function getStudentsByClass(classId) { return DB.students.filter(s => s.centerCl
 function formatCurrency(n) { return Number(n).toLocaleString('vi-VN') + ' VNĐ'; }
 function formatDate(d) { if (!d) return ''; const p = d.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 
-function genStudentId(name, classId) {
-  const parts = name.trim().split(/\s+/);
-  const lastName = parts[parts.length - 1];
-  const noAccent = lastName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\u0111/gi,'d').toUpperCase();
-  const base = `${noAccent}-${classId}`;
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // bỏ ký tự dễ nhầm (0,O,1,I)
-  const usedSuffixes = new Set(DB.students.map(s => {
-    const p = s.id.split('-');
-    return p[p.length - 1];
-  }));
-  let suffix;
+function genStudentId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const used = new Set(DB.students.map(s => s.id));
+  let id;
   do {
-    suffix = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  } while (usedSuffixes.has(suffix));
-  return `${base}-${suffix}`;
+    id = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (used.has(id));
+  return id;
 }
 
 function genClassId(name) {
