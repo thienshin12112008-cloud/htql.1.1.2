@@ -272,8 +272,9 @@ function students() {
     openModal('Thêm học viên mới', studentForm(), () => {
       const f = collectStudentForm();
       if (!f) return false;
-      f.id = genStudentId();
+      f.id = document.getElementById('f_id').value.trim() || genStudentId();
       f.createdAt = new Date().toISOString().split('T')[0];
+      if (DB.students.find(x => x.id === f.id)) { toast('Mã HV đã tồn tại!', 'error'); return false; }
       DB.students.push(f);
       toast('Đã thêm học viên!'); render(); return true;
     });
@@ -284,6 +285,7 @@ function students() {
   function studentForm(s={}) {
     return `<div class="form-grid">
       <div class="form-group"><label>Họ và tên *</label><input id="f_name" value="${s.name||''}"/></div>
+      <div class="form-group"><label>Mã HV <span style="color:#94a3b8;font-weight:400">(để trống hệ thống tự tạo)</span></label><input id="f_id" value="${s.id||''}" placeholder="Tự động tạo nếu để trống"/></div>
       <div class="form-group"><label>Số điện thoại</label><input id="f_phone" value="${s.phone||''}"/></div>
       <div class="form-group"><label>Gmail</label><input type="email" id="f_email" value="${s.email||''}"/></div>
       <div class="form-group" style="grid-column:1/-1"><label>Ghi chú</label><textarea id="f_note">${s.note||''}</textarea></div>
